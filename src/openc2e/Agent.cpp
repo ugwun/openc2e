@@ -625,24 +625,16 @@ void Agent::physicsTick() {
 	float desty = y + vely;
 
 	if (rotatable()) {
-		// TODO: the real engine seems to reset velx/vely, so i do that here, but why?
-		velx = 0.0f;
-		vely = 0.0f;
+		// calculate forwards and sideways vectors
+		float alpha = spin * (M_PI * 2.0f);
+		float forward_nx = sinf(alpha);
+		float forward_ny = -cosf(alpha);
+		float sideways_nx = cosf(alpha);
+		float sideways_ny = sinf(alpha);
 
-		// TODO: which order should these be in?
-
-		// calculate forwards velocity
-		float forward_x = fvel * sinf(spin * (M_PI * 2));
-		float forward_y = fvel * -cosf(spin * (M_PI * 2));
-
-		// calculate sideways velocity
-		// TODO: this sideways velocity code is untested
-		float sideways_x = svel * cosf(spin * (M_PI * 2));
-		float sideways_y = svel * -sinf(spin * (M_PI * 2));
-
-		// set destination based on forward/sideways velocity
-		destx = x + forward_x + sideways_x;
-		desty = y + forward_y + sideways_y;
+		// set destination based on current fvel/svel
+		destx = x + (fvel * forward_nx) + (svel * sideways_nx);
+		desty = y + (fvel * forward_ny) + (svel * sideways_ny);
 
 		// modify spin based on angular velocity
 		spin = fmodf(spin + avel, 1.0f);
@@ -651,11 +643,7 @@ void Agent::physicsTick() {
 	}
 
 	if (sufferphysics()) {
-		// TODO: falling behaviour needs looking at more closely..
-		// .. but it shouldn't be 'false' by default on non-physics agents, so..
-		//falling = false;
 		// increase speed according to accg
-		// TODO: should we be changing vely first, instead of after a successful move (below)?
 		desty += accg;
 	}
 
@@ -747,16 +735,8 @@ void Agent::physicsTick() {
 						float fvelx = velx, fvely = vely;
 
 						// calculate input/slope angles
-						double inputangle;
-						if (fvelx == 0.0f) {
-							if (fvely > 0.0f)
-								inputangle = M_PI / 2.0;
-							else
-								inputangle = 3 * (M_PI / 2.0);
-						} else {
-							inputangle = atan(fvely / fvelx);
-						}
-						double slopeangle = atan(-ydiff / xdiff); // xdiff != 0 because wall isn't vertical
+						double inputangle = atan2(fvely, fvelx);
+						double slopeangle = atan2(-ydiff, xdiff); // xdiff != 0 because wall isn't vertical
 
 						// calculate output angle
 						double outputangle = slopeangle + (slopeangle - inputangle) + M_PI;
@@ -776,17 +756,41 @@ void Agent::physicsTick() {
 					}
 				} else
 					vely = 0;
+
+				// apply friction on impact with floor
+				if (collidedirection == 3 && friction != 0) {
+					velx = velx * (1.0f - friction / 100.0f);
+				}
+
+				// update rotatable velocities from reflected vector
+				if (rotatable()) {
+					float alpha = spin * (M_PI * 2.0f);
+					fvel = (velx * sinf(alpha)) - (vely * cosf(alpha));
+					svel = (velx * cosf(alpha)) + (vely * sinf(alpha));
+				}
+
+				// stop if velocity is very low and hitting floor
+				if (sufferphysics() && accg != 0 && collidedirection == 3) {
+					if (fabs(velx) < 0.1f && vely == 0) {
+						velx = 0;
+						falling = false;
+					}
+				}
 			} else if (sufferphysics() && accg != 0) {
 				vely = vely + accg;
 			}
 		} else {
-			// TODO: correct?
+			// can't move at all
 			if (sufferphysics()) {
-				if (velx == 0.0f && vely == 0.0f)
+				if (fabs(velx) < 0.1f && fabs(vely) < 0.1f) {
+					velx = 0;
+					vely = 0;
 					falling = false;
+				}
+			} else {
+				velx = 0;
+				vely = 0;
 			}
-			velx = 0;
-			vely = 0;
 		}
 	} else {
 		moveTo(destx, desty);
@@ -796,7 +800,6 @@ void Agent::physicsTick() {
 
 	if (sufferphysics() && (aero != 0)) {
 		// reduce speed according to AERO
-		// TODO: aero should be an integer!
 		velx = velx - (velx * (aero / 100.0f));
 		vely = vely - (vely * (aero / 100.0f));
 	}

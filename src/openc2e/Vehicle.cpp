@@ -19,7 +19,9 @@
 
 #include "Vehicle.h"
 
+#include "AgentHelpers.h"
 #include "Engine.h"
+#include "World.h"
 
 #include <cassert>
 
@@ -52,6 +54,30 @@ void Vehicle::tick() {
 
 	// move by xvec/yvec!
 	moveTo(x + xvec / 256.0, y + yvec / 256.0);
+
+	// greedy cabin logic
+	if (greedycabin()) {
+		for (auto& agent_ptr : world.agents) {
+			std::shared_ptr<Agent> a = agent_ptr;
+			if (!a || a.get() == this)
+				continue;
+			if (a->carriedby || a->invehicle || a->isDying())
+				continue;
+
+			// check if the agent can be picked up
+			if (!a->cr_can_pickup)
+				continue;
+
+			// capacity check
+			if (capacity != 0 && passengers.size() >= capacity)
+				break;
+
+			// check if touching
+			if (agentsTouching(this, a.get())) {
+				addCarried(a);
+			}
+		}
+	}
 }
 
 void Vehicle::carry(AgentRef passenger) {
@@ -74,19 +100,19 @@ void Vehicle::carry(AgentRef passenger) {
 	}
 
 	// push into our cabin
-	// TODO: should we use moveTo here?
-	if (passenger->x + passenger->getWidth() > (x + cabinright))
-		passenger->x = x + cabinright - passenger->getWidth();
-	if (passenger->x < (x + cabinleft))
-		passenger->x = x + cabinleft;
-	if (engine.version > 1) {
-		// TODO: not sure if this is good for too-high agents, if it's possible for them to exist (see comment above)
-		if (passenger->y + passenger->getHeight() > (y + cabinbottom))
+	if (!openaircabin()) {
+		if (passenger->x + passenger->getWidth() > (x + cabinright))
+			passenger->x = x + cabinright - passenger->getWidth();
+		if (passenger->x < (x + cabinleft))
+			passenger->x = x + cabinleft;
+		if (engine.version > 1) {
+			if (passenger->y + passenger->getHeight() > (y + cabinbottom))
+				passenger->y = y + cabinbottom - passenger->getHeight();
+			if (passenger->y < (y + cabintop))
+				passenger->y = y + cabintop;
+		} else {
 			passenger->y = y + cabinbottom - passenger->getHeight();
-		if (passenger->y < (y + cabintop))
-			passenger->y = y + cabintop;
-	} else {
-		passenger->y = y + cabinbottom - passenger->getHeight();
+		}
 	}
 
 	passengers.push_back(passenger);

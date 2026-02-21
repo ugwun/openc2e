@@ -354,6 +354,19 @@ void c_DBG_TSLC(caosVM* vm) {
 }
 
 /**
+ DBG: TARK (command)
+ %status ok
+ %variants openc2e
+
+ (openc2e-only)
+ Ticks the target agent once.
+*/
+void c_DBG_TARK(caosVM* vm) {
+	valid_agent(vm->targ);
+	vm->targ->tick();
+}
+
+/**
  DBG: TSLC (integer)
  %status ok
  %variants openc2e

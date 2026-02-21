@@ -332,4 +332,24 @@ void c_DPS2(caosVM* vm) {
 	// TODO
 }
 
+/**
+ PTTV (agent) index (integer)
+ %status maybe
+ %variants c3 cv sm
+*/
+void v_PTTV(caosVM* vm) {
+	VM_VERIFY_SIZE(1)
+	VM_PARAM_INTEGER(index)
+
+	valid_agent(vm->targ);
+	Vehicle* v = dynamic_cast<Vehicle*>(vm->targ.get());
+	THROW_IFNOT(v);
+
+	if (index >= 0 && (unsigned int)index < v->passengers.size()) {
+		vm->result.setAgent(v->passengers[index]);
+	} else {
+		vm->result.setAgent(nullptr);
+	}
+}
+
 /* vim: set noet: */

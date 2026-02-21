@@ -298,6 +298,8 @@ bool caosValue::operator==(const caosValue& v) const {
 		return this->getAgent() == v.getAgent();
 	} else if (this->hasVector() && v.hasVector()) {
 		return this->getVector() == v.getVector();
+	} else if (this->hasByteStr() && v.hasByteStr()) {
+		return this->getByteStr() == v.getByteStr();
 	} else if (engine.version < 3) {
 		// C1/C2 allow you to compare agents to an integer (unid), since agents are integers..
 		// TODO: do this for >/< too?

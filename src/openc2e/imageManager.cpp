@@ -98,6 +98,12 @@ std::shared_ptr<creaturesImage> imageManager::getBackground(const std::string& n
 	if (name.empty())
 		return std::shared_ptr<creaturesImage>(); // empty sprites definitely don't exist
 
+	// step one: see if the image is already in the gallery
+	std::map<std::string, std::weak_ptr<creaturesImage> >::iterator i = images.find(name);
+	if (i != images.end() && i->second.lock()) {
+		return i->second.lock();
+	}
+
 	// TODO: cache backgrounds
 	std::shared_ptr<creaturesImage> img;
 	if (engine.version == 1) {

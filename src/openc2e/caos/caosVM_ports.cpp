@@ -30,7 +30,25 @@
 */
 void c_PRT_BANG(caosVM* vm) {
 	VM_VERIFY_SIZE(1)
-	VM_PARAM_INTEGER_UNUSED(strength)
+	VM_PARAM_INTEGER(strength)
+
+	valid_agent(vm->targ);
+
+	for (auto const& it : vm->targ->outports) {
+		std::shared_ptr<OutputPort> const& port = it.second;
+		PortConnectionList::iterator i = port->dests.begin();
+		while (i != port->dests.end()) {
+			PortConnectionList::iterator next = i;
+			next++;
+			if (!i->first || i->first->inports.find(i->second) == i->first->inports.end()) {
+				port->dests.erase(i);
+				i = next;
+				continue;
+			}
+			i->first->queueScript(i->first->inports[i->second]->messageno, vm->targ, strength);
+			i = next;
+		}
+	}
 }
 
 /**
@@ -81,10 +99,10 @@ void v_PRT_FROM(caosVM* vm) {
 void c_PRT_INEW(caosVM* vm) {
 	VM_VERIFY_SIZE(6)
 	VM_PARAM_INTEGER(msgnum)
-	VM_PARAM_INTEGER(y)
-	VM_PARAM_INTEGER(x)
 	VM_PARAM_STRING(desc)
 	VM_PARAM_STRING(name)
+	VM_PARAM_INTEGER(y)
+	VM_PARAM_INTEGER(x)
 	VM_PARAM_INTEGER(id)
 
 	valid_agent(vm->targ);
@@ -222,10 +240,10 @@ void v_PRT_NAME(caosVM* vm) {
 */
 void c_PRT_ONEW(caosVM* vm) {
 	VM_VERIFY_SIZE(5)
-	VM_PARAM_INTEGER(y)
-	VM_PARAM_INTEGER(x)
 	VM_PARAM_STRING(desc)
 	VM_PARAM_STRING(name)
+	VM_PARAM_INTEGER(y)
+	VM_PARAM_INTEGER(x)
 	VM_PARAM_INTEGER(id)
 
 	valid_agent(vm->targ);
@@ -281,20 +299,98 @@ void c_PRT_SEND(caosVM* vm) {
 
 	valid_agent(vm->targ);
 
-	THROW_IFNOT(vm->targ->outports.find(id) != vm->targ->outports.end());
-
-	PortConnectionList::iterator i = vm->targ->outports[id]->dests.begin();
-	while (i != vm->targ->outports[id]->dests.end()) {
-		PortConnectionList::iterator next = i;
-		next++;
-		if (!i->first || i->first->inports.find(i->second) == i->first->inports.end()) {
-			vm->targ->outports[id]->dests.erase(i);
+	if (vm->targ->outports.find(id) != vm->targ->outports.end()) {
+		PortConnectionList::iterator i = vm->targ->outports[id]->dests.begin();
+		while (i != vm->targ->outports[id]->dests.end()) {
+			PortConnectionList::iterator next = i;
+			next++;
+			if (!i->first || i->first->inports.find(i->second) == i->first->inports.end()) {
+				vm->targ->outports[id]->dests.erase(i);
+				i = next;
+				continue;
+			}
+			i->first->queueScript(i->first->inports[i->second]->messageno, vm->targ, data);
 			i = next;
-			continue;
 		}
-		i->first->queueScript(i->first->inports[i->second]->messageno, vm->targ, data);
-		i = next;
 	}
+}
+
+/**
+ PRT: BNEW (command) id (integer) is_outport (integer) port_ids (bytestring)
+ %status maybe
+*/
+void c_PRT_BNEW(caosVM* vm) {
+	VM_VERIFY_SIZE(3)
+	VM_PARAM_BYTESTR(port_ids)
+	VM_PARAM_INTEGER(is_outport)
+	VM_PARAM_INTEGER(id)
+
+	valid_agent(vm->targ);
+	std::vector<unsigned int> ports;
+	for (unsigned char p : port_ids) {
+		ports.push_back(p);
+	}
+
+	if (is_outport)
+		vm->targ->outbundles[id] = ports;
+	else
+		vm->targ->inbundles[id] = ports;
+}
+
+/**
+ PRT: BZAP (command) id (integer) is_outport (integer)
+ %status maybe
+*/
+void c_PRT_BZAP(caosVM* vm) {
+	VM_VERIFY_SIZE(2)
+	VM_PARAM_INTEGER(is_outport)
+	VM_PARAM_INTEGER(id)
+
+	valid_agent(vm->targ);
+	if (is_outport)
+		vm->targ->outbundles.erase(id);
+	else
+		vm->targ->inbundles.erase(id);
+}
+
+/**
+ PRT: BTOT (integer) is_outport (integer)
+ %status maybe
+*/
+void v_PRT_BTOT(caosVM* vm) {
+	VM_VERIFY_SIZE(1)
+	VM_PARAM_INTEGER(is_outport)
+
+	valid_agent(vm->targ);
+	if (is_outport)
+		vm->result.setInt(vm->targ->outbundles.size());
+	else
+		vm->result.setInt(vm->targ->inbundles.size());
+}
+
+/**
+ PRT: BINF (bytestring) id (integer) is_outport (integer)
+ %status maybe
+*/
+void v_PRT_BINF(caosVM* vm) {
+	VM_VERIFY_SIZE(2)
+	VM_PARAM_INTEGER(is_outport)
+	VM_PARAM_INTEGER(id)
+
+	valid_agent(vm->targ);
+	bytestring_t res;
+	if (is_outport) {
+		if (vm->targ->outbundles.count(id)) {
+			for (unsigned int p : vm->targ->outbundles[id])
+				res.push_back((unsigned char)p);
+		}
+	} else {
+		if (vm->targ->inbundles.count(id)) {
+			for (unsigned int p : vm->targ->inbundles[id])
+				res.push_back((unsigned char)p);
+		}
+	}
+	vm->result.setByteStr(res);
 }
 
 /* vim: set noet: */

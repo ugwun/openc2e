@@ -893,7 +893,9 @@ unsigned int calculateScriptId(unsigned int message_id) {
 void c_MESG_WRIT(caosVM* vm) {
 	VM_VERIFY_SIZE(2)
 	VM_PARAM_INTEGER(message_id)
-	VM_PARAM_VALIDAGENT(agent);
+	VM_PARAM_AGENT(agent);
+
+	if (!agent) return;
 
 	agent->queueScript(calculateScriptId(message_id), vm->owner.get());
 }
@@ -913,7 +915,9 @@ void c_MESG_WRT(caosVM* vm) {
 	VM_PARAM_VALUE(param_2)
 	VM_PARAM_VALUE(param_1)
 	VM_PARAM_INTEGER(message_id)
-	VM_PARAM_VALIDAGENT(agent)
+	VM_PARAM_AGENT(agent)
+
+	if (!agent) return;
 
 	// I'm not sure how to handle the 'delay'; is it a background delay, or do we actually block for delay ticks?
 	// TODO: fuzzie can't work out how on earth delays work in c2e, someone fixit

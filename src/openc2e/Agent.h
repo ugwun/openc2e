@@ -118,6 +118,8 @@ class Agent : public std::enable_shared_from_this<Agent> {
 	// these are maps rather than vectors because ports can be destroyed
 	std::map<unsigned int, std::shared_ptr<InputPort> > inports; // XXX: do these need to be std::shared_ptr?
 	std::map<unsigned int, std::shared_ptr<OutputPort> > outports;
+	std::map<unsigned int, std::vector<unsigned int> > inbundles;
+	std::map<unsigned int, std::vector<unsigned int> > outbundles;
 
 	void join(unsigned int outid, AgentRef dest, unsigned int inid);
 

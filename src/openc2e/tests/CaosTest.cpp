@@ -1,9 +1,12 @@
-#include "common/creaturesImage.h"
+#include "openc2e/Engine.h"
+#include "openc2e/MetaRoom.h"
 #include "openc2e/PathResolver.h"
+#include "openc2e/Room.h"
 #include "openc2e/World.h"
 #include "openc2e/caosScript.h"
 #include "openc2e/caosVM.h"
 #include "openc2e/imageManager.h"
+#include "openc2e/Map.h"
 
 #include <gtest/gtest-spi.h>
 #include <gtest/gtest.h>
@@ -11,7 +14,7 @@
 class Openc2eTestHelper {
   public:
 	static std::shared_ptr<creaturesImage> addBlnkSprite() {
-		shared_array<uint8_t> pureblack(2 * 41 * 18);
+		shared_array<uint8_t> pureblack(2 * 41 * 18 * 2); // 2 frames, 41x18, 16bpp
 		std::vector<Image> images(2);
 		for (size_t i = 0; i < images.size(); ++i) {
 			images[i].width = 41;
@@ -19,12 +22,16 @@ class Openc2eTestHelper {
 			images[i].format = if_rgb565;
 			images[i].data = pureblack;
 		}
+		std::shared_ptr<creaturesImage> sprite = std::make_shared<creaturesImage>("blnk");
+		sprite->images = images;
+		world.gallery->addImage(sprite);
+		return sprite;
+	}
 
-		std::shared_ptr<creaturesImage> img(new creaturesImage("blnk"));
-		img->images = images;
-
-		world.gallery->addImage(img);
-		return img;
+	static void setupBasicMap() {
+		world.map->Reset();
+		MetaRoom* mr = world.map->addMetaRoom(0, 0, 1000, 1000, "blnk", false);
+		mr->addRoom(std::make_shared<Room>(0, 1000, 0, 0, 1000, 1000));
 	}
 };
 
@@ -32,12 +39,20 @@ static void run_script(const std::string& dialect, const std::string& s) {
 	caosScript script(dialect, "");
 	script.parse(s);
 
+	// set engine version based on dialect
+	int old_version = engine.version;
+	if (dialect == "c1") engine.version = 1;
+	else if (dialect == "c2") engine.version = 2;
+	else if (dialect == "c3" || dialect == "cv" || dialect == "sm") engine.version = 3;
+
 	caosVM vm(nullptr);
 	try {
 		vm.runEntirely(script.installer);
 	} catch (caosException& e) {
+		engine.version = old_version;
 		ADD_FAILURE() << e.prettyPrint();
 	}
+	engine.version = old_version;
 }
 
 TEST(caos, unknown_dialect) {
@@ -679,4 +694,215 @@ TEST(caos, history) {
         * HIST: EVNT is missing
         * Note: These are placeholders for future implementation
     )");
+}
+
+TEST(caos, physics_v3) {
+	auto sprite = Openc2eTestHelper::addBlnkSprite();
+	Openc2eTestHelper::setupBasicMap();
+	run_script("c3", R"(
+		* test friction
+		new: simp 3 2 1 "blnk" 2 0 0
+		attr 195 * autonomous + mouseable + collisions + physics
+		accg 1.0
+		elas 0 * no bounce
+		fric 50
+		mvto 100 100
+		setv velx 10.0
+		
+		* wait for agent to land
+		setv va00 100
+		reps va00
+			dbg: tark
+		repe
+		
+		* agent should be on floor now, vely should be 0, velx should be reduced (if friction applied)
+		* we need at least one tick after landing for friction to apply
+		dbg: tark
+		
+		* friction 50% means it should be around 5.0
+		dbg: asrt velx < 6.0
+		dbg: asrt velx > 4.0
+		kill targ
+
+		* test velocity threshold (stopping)
+		new: simp 3 2 1 "blnk" 2 0 0
+		attr 195 * autonomous + mouseable + collisions + physics
+		accg 1.0
+		elas 0
+		fric 0
+		mvto 100 100
+		
+		* wait for agent to land first
+		setv va00 100
+		reps va00
+			dbg: tark
+		repe
+		
+		* now set small velocity
+		setv velx 0.05
+		dbg: tark
+		
+		* velx 0.05 is < 0.1 threshold and we are on floor, should stop
+		dbg: asrt velx eq 0.0
+		kill targ
+
+		* test reflection (atan2 logic)
+		new: simp 3 2 1 "blnk" 2 0 0
+		attr 147
+		elas 100
+		mvto 100 100
+		setv velx 10.0
+		dbg: tark
+		kill targ
+	)");
+	world.gallery = std::make_unique<imageManager>();
+}
+
+TEST(caos, vehicles) {
+	auto sprite = Openc2eTestHelper::addBlnkSprite();
+	Openc2eTestHelper::setupBasicMap();
+	run_script("c3", R"(
+		* test greedy cabin
+		new: vhcl 3 2 1 "blnk" 2 0 0
+		attr 203 * autonomous + mouseable + greedy cabin + collisions + physics
+		seta va00 targ
+		cabn 0 0 200 200
+		mvto 100 100
+		
+		new: simp 3 2 1 "blnk" 2 0 0
+		seta va01 targ
+		bhvr 32 * can be picked up
+		mvto 100 100 * exactly on the vehicle
+		
+		* advance vehicle state to trigger greedy pickup
+		targ va00
+		dbg: tark
+		
+		* check if passenger was picked up
+		seta va02 pttv 0
+		dbg: asrt va02 eq va01
+		
+		kill va00
+		kill va01
+
+		* test open air cabin clipping
+		new: vhcl 3 2 1 "blnk" 2 0 0
+		attr 512 * open air cabin
+		seta va00 targ
+		dbg: asrt attr eq 512
+		
+		cabn 0 0 100 100
+		mvto 10 10
+		
+		new: simp 3 2 1 "blnk" 2 0 0
+		seta va01 targ
+		mvto 50 50
+		
+		targ va00
+		spas va00 va01 * force pick up
+		
+		* verify invehicle state
+		targ va00
+		seta va02 pttv 0
+		dbg: asrt va02 eq va01
+		
+		targ va01
+		* with open air cabin, it should remain at 50,50
+		* POSX/POSY return center: 50 + 41/2 = 70.5, 50 + 18/2 = 59.0
+		dbg: asrt posx eq 70.5
+		dbg: asrt posy eq 59.0
+		
+		* without open air cabin logic
+		targ va00
+		attr 0
+		dpas 0 0 0 * drop everyone
+		
+		* put passenger outside cabin (to the right)
+		targ va01
+		mvto 200 200
+		
+		* re-pick up. spas on a vehicle with openaircabin=false should clip it
+		targ va00
+		spas va00 va01
+		
+		targ va01
+		* sprite width is 41, height is 18.
+		* vehicle is at 10,10. cabin is 0,0,100,100 relative to vehicle.
+		* absolute cabin is 10,10,110,110.
+		* top-left clipped to cabinright (110) - width (41) = 69
+		* top-left clipped to cabinbottom (110) - height (18) = 92
+		* POSX/POSY return center: 69 + 20.5 = 89.5, 92 + 9 = 101.0
+		dbg: asrt posx eq 89.5
+		dbg: asrt posy eq 101.0
+		
+		kill va00
+		kill va01
+	)");
+	world.gallery = std::make_unique<imageManager>();
+}
+
+TEST(caos, ports) {
+	auto sprite = Openc2eTestHelper::addBlnkSprite();
+	Openc2eTestHelper::setupBasicMap();
+	run_script("c3", R"(
+		* test port bundles
+		new: simp 3 2 1 "blnk" 2 0 0
+		seta va00 targ
+		
+		* create a bundle with 3 ports
+		prt: bnew 1 1 [000102]
+		
+		dbg: asrt prt: btot 1 eq 1
+		dbg: asrt prt: binf 1 1 eq [000102]
+		
+		prt: bzap 1 1
+		dbg: asrt prt: btot 1 eq 0
+		
+		kill va00
+		
+		* test PRT: BANG
+		new: simp 3 2 1 "blnk" 2 0 0
+		seta va00 targ
+		prt: onew 0 0 0 "out" "desc"
+		
+		new: simp 3 2 1 "blnk" 2 0 0
+		seta va01 targ
+		prt: inew 0 0 0 "in" "desc" 100 * message 100
+		
+		* connect them
+		prt: join va00 0 va01 0
+		
+		* send bang
+		targ va00
+		prt: bang 42
+		
+		* verify message in queue (hacky way: check if it's there)
+		* we can't easily check the message queue directly in CAOS without SCRP
+		* but we can verify the command doesn't crash
+		
+		kill va00
+		kill va01
+	)");
+	world.gallery = std::make_unique<imageManager>();
+}
+
+TEST(caos, robustness) {
+	auto sprite = Openc2eTestHelper::addBlnkSprite();
+	Openc2eTestHelper::setupBasicMap();
+	run_script("c3", R"(
+		* test MESG WRIT with NULL agent
+		targ null
+		mesg writ targ 1
+		
+		* test MESG WRT+ with NULL agent
+		mesg wrt+ targ 1 0 0 0
+		
+		* test PRT: SEND with non-existent port
+		new: simp 3 2 1 "blnk" 2 0 0
+		seta va00 targ
+		prt: send 999 1
+		
+		kill va00
+	)");
+	world.gallery = std::make_unique<imageManager>();
 }
