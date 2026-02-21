@@ -654,3 +654,29 @@ TEST(caos, vector) {
 		DBG: ASRT VA03 EQ 1    
 	)");
 }
+TEST(caos, brain) {
+    // BRN: commands are currently stubbed/missing
+    // This will fail once we add ASRT for missing commands, 
+    // or we can test that they don't crash.
+    run_script("c3", R"(
+        * Testing basic brain commands
+        * BRN: DMPB is currently missing in openc2e
+        * Note: These are placeholders for future implementation
+    )");
+}
+
+TEST(caos, genetics) {
+    run_script("c3", R"(
+        * Testing basic genetics commands
+        * GENE: LOAD is a stub
+        * Note: These are placeholders for future implementation
+    )");
+}
+
+TEST(caos, history) {
+    run_script("c3", R"(
+        * Testing basic history commands
+        * HIST: EVNT is missing
+        * Note: These are placeholders for future implementation
+    )");
+}
