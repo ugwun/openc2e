@@ -22,6 +22,7 @@
 #include "oldBrain.h"
 #include "oldCreature.h"
 
+#include "BiochemistryConstants.h"
 #include <cassert>
 #include <cmath> // powf
 #include <fmt/core.h>
@@ -548,11 +549,11 @@ void c2Organ::tick() {
 		ticked = true;
 
 		// chem 99 = ATP, chem 100 = ADP (hardcoded)
-		unsigned char atplevel = parent->getChemical(99);
+		unsigned char atplevel = parent->getChemical(C2_CHEM_ATP);
 		if (atplevel >= energycost) {
 			// energy consumption
-			parent->subChemical(99, energycost);
-			parent->addChemical(100, energycost);
+			parent->subChemical(C2_CHEM_ATP, energycost);
+			parent->addChemical(C2_CHEM_ADP, energycost);
 
 			// *** tick emitters
 			for (auto& emitter : emitters)
@@ -618,12 +619,12 @@ void c2eOrgan::tick() {
 
 		// *** energy consumption
 		// chem 35 = ATP, chem 36 = ADP (TODO: fix hardcoding)
-		float atplevel = parent->getChemical(35);
+		float atplevel = parent->getChemical(CHEM_ATP);
 		// bool hadenergy = false;
 		if (atplevel >= energycost) {
 			// hadenergy = true;
-			parent->adjustChemical(35, -energycost);
-			parent->adjustChemical(36, energycost);
+			parent->adjustChemical(CHEM_ATP, -energycost);
+			parent->adjustChemical(CHEM_ADP, energycost);
 
 			// *** tick emitters
 			for (auto& emitter : emitters)
@@ -646,7 +647,7 @@ void c2eOrgan::tick() {
 		float repair = diff * repairrate; // repairrate always <= 1.00
 		shorttermlifeforce += repair;
 		// adjust Injury chemical (TODO: de-hardcode)
-		parent->adjustChemical(127, -repair / lifeforce);
+		parent->adjustChemical(CHEM_INJURY, -repair / lifeforce);
 
 		if (injurytoapply)
 			applyInjury(injurytoapply);
@@ -684,7 +685,7 @@ void c2eOrgan::applyInjury(float value) {
 	if (shorttermlifeforce < 0.0f)
 		shorttermlifeforce = 0.0f;
 	// adjust Injury chemical (TODO: de-hardcode)
-	parent->adjustChemical(127, value / lifeforce);
+	parent->adjustChemical(CHEM_INJURY, value / lifeforce);
 }
 
 void c1Creature::processReaction(c1Reaction& d) {

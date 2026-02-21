@@ -520,9 +520,9 @@ void SkeletalCreature::snapDownFoot() {
 	lastgoodfooty = footy;
 
 	if (engine.version > 2) {
-		if (engine.version == 2 && !belowfloor && downfootroom->floorpoints.size()) {
+		if (!belowfloor && downfootroom->floorpoints.size()) {
 			// TODO: hilar hack: same as above for floorvalue
-			if (size <= downfootroom->floorvalue) {
+			if (perm <= downfootroom->floorvalue) {
 				falling = true;
 				return;
 			}
@@ -530,7 +530,7 @@ void SkeletalCreature::snapDownFoot() {
 			// TODO: hilar hack: same as above for perm
 			std::shared_ptr<Room> downroom = world.map->roomAt(footx, downfootroom->y_left_floor + 1);
 			if (world.map->hasDoor(downfootroom, downroom)) {
-				int permsize = (engine.version == 2 ? size : perm);
+				int permsize = perm;
 				if (permsize <= world.map->getDoorPerm(downfootroom, downroom)) {
 					falling = true;
 					return;
@@ -551,8 +551,8 @@ void SkeletalCreature::setPose(std::string s) {
 	switch (s[0]) {
 		case '?': // towards object of attention
 			switch (direction) {
-				case 0: posedirection = 3; break; // north, TODO
-				case 1: posedirection = 2; break; // south, TODO
+				case 0: posedirection = 2; break; // north (facing away from camera)
+				case 1: posedirection = 3; break; // south (facing towards camera)
 				case 2: posedirection = 0; break; // right
 				case 3: posedirection = 1; break; // left
 				default: assert(false);
@@ -560,8 +560,8 @@ void SkeletalCreature::setPose(std::string s) {
 			break;
 		case '!': // away from object of attention
 			switch (direction) {
-				case 0: posedirection = 2; break; // north, TODO
-				case 1: posedirection = 3; break; // south, TODO
+				case 0: posedirection = 3; break; // north (facing towards camera)
+				case 1: posedirection = 2; break; // south (facing away from camera)
 				case 2: posedirection = 1; break; // right
 				case 3: posedirection = 0; break; // left
 				default: assert(false);

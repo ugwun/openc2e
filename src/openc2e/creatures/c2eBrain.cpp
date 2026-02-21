@@ -520,6 +520,14 @@ bool c2eSVRule::runRule(float acc, float srcneuron[8], float neuron[8], float sp
 	float accumulator = acc;
 	float operandvalue = 0.0f; // valid rules should never use this
 	float tendrate = 0.0f;
+	float leakrate = 0.0f;
+	float reststate = 0.0f;
+	float inputgain = 1.0f;
+	float persistence = 0.0f;
+	float reward_threshold = 0.0f;
+	float reward_rate = 0.0f;
+	float punish_threshold = 0.0f;
+	float punish_rate = 0.0f;
 	float* operandpointer;
 	float dummy;
 	static float stw = 0.0f; // TODO: good default?
@@ -773,33 +781,28 @@ bool c2eSVRule::runRule(float acc, float srcneuron[8], float neuron[8], float sp
 				break;
 
 			case 37: // leakage rate
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				leakrate = operandvalue;
 				break;
 
 			case 38: // rest state
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				reststate = operandvalue;
 				break;
 
 			case 39: // input gain hi-lo
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				// TODO: do we need two values?
+				inputgain = operandvalue;
 				break;
 
 			case 40: // persistence
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				persistence = operandvalue;
 				break;
 
 			case 41: // signal noise
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				accumulator += (rand_float(-1.0f, 1.0f) * operandvalue);
 				break;
 
 			case 42: // winner takes all
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				is_spare = true;
 				break;
 
 			case 43: // short-term relax rate
@@ -879,33 +882,27 @@ bool c2eSVRule::runRule(float acc, float srcneuron[8], float neuron[8], float sp
 				break;
 
 			case 57: // reward threshold
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				reward_threshold = operandvalue;
 				break;
 
 			case 58: // reward rate
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				reward_rate = operandvalue;
 				break;
 
 			case 59: // use reward with
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				accumulator += std::max(0.0f, creature->getDrive(0) - reward_threshold) * reward_rate * operandvalue;
 				break;
 
 			case 60: // punish threshold
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				punish_threshold = operandvalue;
 				break;
 
 			case 61: // punish rate
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				punish_rate = operandvalue;
 				break;
 
 			case 62: // use punish with
-				// TODO
-				warnUnimplementedSVRule(rule.opcode);
+				accumulator += std::max(0.0f, creature->getDrive(1) - punish_threshold) * punish_rate * operandvalue;
 				break;
 
 			case 63: // preserve neuron SV
