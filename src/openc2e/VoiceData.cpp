@@ -69,7 +69,7 @@ VoiceData::VoiceData(std::string tagname) {
 		return;
 	const std::vector<std::string>& lookupdata = catalogue.getTag(languagetag);
 	for (const auto& i : lookupdata) {
-		uint32_t data = numeric_cast<uint32_t>(std::stol(i, nullptr, 16));
+		uint32_t data = numeric_cast<uint32_t>(std::stoul(i, nullptr, 16));
 		lookup_table.push_back(data);
 	}
 	if (lookup_table.size() != 3 * 27)
