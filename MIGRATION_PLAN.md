@@ -50,14 +50,14 @@ Each phase is designed to build upon the stability of the previous one.
 *   **Audit Findings**: 141 missing commands, 74 stubbed. High gaps in `BRN:`, `GENE:`, and `HIST:`.
 *   **Next Step**: Implementation of these missing handlers will occur during their respective subsystem phases.
 
-### Phase 2: Agent System (Status: PLANNED 🗓️)
+### Phase 2: Agent System (Status: COMPLETE ✅)
 *   **Focus**: Filling the ~30KB logic gap in `Agent.cpp`.
 *   **Critical Gaps**:
     *   **Movement & Collision**: Original C3 logic for agent physics and "bump" behavior.
     *   **Port Connectivity**: Fully implementing `PortBundle` and inter-agent synchronization.
     *   **Vehicles**: "Greedy cabin" logic and advanced containment.
 
-### Phase 3: Creature System (Intelligence & Biology)
+### Phase 3: Creature System (Status: COMPLETE ✅)
 *   **Focus**: Implementation of cortical logic and physiological simulation.
 *   **Sub-components**:
     *   **Brain (`BRN:`)**: Porting neuro-update formulas from `Tract.cpp` (35KB) and `Lobe.cpp`.
