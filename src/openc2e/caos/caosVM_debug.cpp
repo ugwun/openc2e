@@ -408,4 +408,20 @@ void v_DBG_SIZO(caosVM* vm) {
 	vm->result.setString(oss.string());
 }
 
+/**
+ DBG: SNAP (command)
+ %status ok
+ %variants openc2e
+ 
+ Dumps the current world state to world_snapshot.json.
+*/
+void c_DBG_SNAP(caosVM* vm) {
+	std::string json = world.dumpStateJSON();
+	FILE* f = fopen("world_snapshot.json", "w");
+	if (f) {
+		fputs(json.c_str(), f);
+		fclose(f);
+	}
+}
+
 /* vim: set noet: */

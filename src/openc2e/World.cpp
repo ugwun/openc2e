@@ -685,4 +685,145 @@ int World::findCategory(unsigned char family, unsigned char genus, unsigned shor
 	return -1;
 }
 
+static std::string jsonEscape(const std::string& s) {
+	std::string res;
+	for (char c : s) {
+		if (c == '"' || c == '\\') res += '\\';
+		else if (c == '\n') { res += "\\n"; continue; }
+		else if (c == '\r') { res += "\\r"; continue; }
+		else if (c == '\t') { res += "\\t"; continue; }
+		res += c;
+	}
+	return res;
+}
+
+static std::string caosValueToJSON(const caosValue& v) {
+	switch (v.getType()) {
+		case CAOSNULL: return "null";
+		case CAOSINT: return std::to_string(v.getInt());
+		case CAOSFLOAT: return fmt::format("{:f}", v.getFloat());
+		case CAOSSTR: return fmt::format("\"{}\"", jsonEscape(v.getString()));
+		case CAOSAGENT: {
+			std::shared_ptr<Agent> a = v.getAgent();
+			return a ? std::to_string(a->getUNID()) : "null";
+		}
+		case CAOSVEC: {
+			const Vector<float>& vec = v.getVector();
+			return fmt::format("{{\"x\": {:f}, \"y\": {:f}}}", vec.x, vec.y);
+		}
+		case CAOSBYTESTRING: return "\"<bytestring>\"";
+		case CAOSFACEVALUE: return "\"<facevalue>\"";
+		default: return "\"<unknown>\"";
+	}
+}
+
+std::string World::dumpStateJSON() {
+	std::string res = "{";
+
+	// World info
+	res += fmt::format("\"name\": \"{}\", ", jsonEscape(name));
+	res += fmt::format("\"tickcount\": {}, ", tickcount);
+	res += fmt::format("\"worldtickcount\": {}, ", worldtickcount);
+
+	// Agents
+	res += "\"agents\": [";
+	bool first = true;
+	for (const auto& a : agents) {
+		if (!a) continue;
+		if (!first) res += ", ";
+		first = false;
+		res += "{";
+		res += fmt::format("\"unid\": {}, ", a->getUNID());
+		res += fmt::format("\"classifier\": [{}, {}, {}], ", (int)a->family, (int)a->genus, (int)a->species);
+		res += fmt::format("\"pos\": [{:f}, {:f}], ", a->x, a->y);
+		res += fmt::format("\"vel\": [{:f}, {:f}], ", a->velx, a->vely);
+		res += fmt::format("\"attr\": {}, ", a->attr);
+		res += fmt::format("\"identify\": \"{}\", ", jsonEscape(a->identify()));
+		
+		// Relationship Links
+		res += fmt::format("\"carrying\": {}, ", a->carrying ? (int)a->carrying->getUNID() : -1);
+		res += fmt::format("\"carriedby\": {}, ", a->carriedby ? (int)a->carriedby->getUNID() : -1);
+		res += fmt::format("\"invehicle\": {}, ", a->invehicle ? (int)a->invehicle->getUNID() : -1);
+
+		// VM State
+		res += "\"vm\": {";
+		caosVM* vm = a->vm;
+		res += fmt::format("\"present\": {}, ", vm ? "true" : "false");
+		res += fmt::format("\"stopped\": {}, ", (!vm || vm->stopped()) ? "true" : "false");
+		if (vm && vm->currentscript) {
+			res += fmt::format("\"script\": [{}, {}, {}, {}], ", vm->currentscript->fmly, vm->currentscript->gnus, vm->currentscript->spcs, vm->currentscript->scrp);
+			res += fmt::format("\"ip\": [{}, {}], ", vm->cip, vm->nip);
+			res += fmt::format("\"stack_size\": {}, ", (int)vm->valueStack.size());
+			res += fmt::format("\"targ\": {}, ", vm->targ ? (int)vm->targ->getUNID() : -1);
+			res += fmt::format("\"owner\": {}, ", vm->owner ? (int)vm->owner->getUNID() : -1);
+			res += fmt::format("\"it\": {} ", vm->_it_ ? (int)vm->_it_->getUNID() : -1);
+		} else {
+			res += "\"script\": null, ";
+			res += "\"ip\": [0, 0], ";
+			res += "\"stack_size\": 0, ";
+			res += "\"targ\": -1, ";
+			res += "\"owner\": -1, ";
+			res += "\"it\": -1 ";
+		}
+		res += "}, ";
+
+		res += "\"ov\": [";
+		for (int i = 0; i < 100; i++) {
+			if (i > 0) res += ", ";
+			res += caosValueToJSON(a->var[i]);
+		}
+		res += "], ";
+
+		res += "\"name_variables\": {";
+		bool vfirst = true;
+		for (const auto& vpair : a->name_variables) {
+			if (!vfirst) res += ", ";
+			vfirst = false;
+			res += fmt::format("\"{}\": {}", jsonEscape(vpair.first.dump()), caosValueToJSON(vpair.second));
+		}
+		res += "}";
+		res += "}";
+	}
+	res += "], ";
+
+	// Map
+	res += "\"map\": {";
+	res += fmt::format("\"width\": {}, \"height\": {}, ", map->getWidth(), map->getHeight());
+	res += "\"metarooms\": [";
+	for (unsigned int i = 0; i < map->getMetaRoomCount(); i++) {
+		MetaRoom* mr = map->getMetaRoom(i);
+		if (i > 0) res += ", ";
+		res += "{";
+		res += fmt::format("\"id\": {}, ", mr->id);
+		res += fmt::format("\"rect\": [{}, {}, {}, {}], ", mr->x(), mr->y(), mr->width(), mr->height());
+		res += fmt::format("\"background\": \"{}\", ", jsonEscape(mr->getCurrentBackgroundName()));
+		res += "\"rooms\": [";
+		for (unsigned int j = 0; j < mr->rooms.size(); j++) {
+			std::shared_ptr<Room> r = mr->rooms[j];
+			if (j > 0) res += ", ";
+			res += "{";
+			res += fmt::format("\"id\": {}, ", r->id);
+			res += fmt::format("\"bounds\": [{}, {}, {}, {}, {}, {}]", r->x_left, r->x_right, r->y_left_ceiling, r->y_right_ceiling, r->y_left_floor, r->y_right_floor);
+			res += "}";
+		}
+		res += "]";
+		res += "}";
+	}
+	res += "]";
+	res += "}, ";
+
+	// Variables (Global)
+	res += "\"variables\": {";
+	first = true;
+	for (const auto& pair : variables) {
+		if (!first) res += ", ";
+		first = false;
+		res += fmt::format("\"{}\": {}", jsonEscape(pair.first), caosValueToJSON(pair.second));
+	}
+	res += "}";
+
+	res += "}";
+	return res;
+}
+
 /* vim: set noet: */

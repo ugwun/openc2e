@@ -128,6 +128,8 @@ class World {
 	void freeUNID(int unid);
 
 	std::shared_ptr<Agent> lookupUNID(int unid);
+
+	std::string dumpStateJSON();
 };
 
 extern World world;

@@ -10,6 +10,8 @@
 
 #include <gtest/gtest-spi.h>
 #include <gtest/gtest.h>
+#include <fstream>
+#include <iterator>
 
 class Openc2eTestHelper {
   public:
@@ -950,4 +952,32 @@ TEST(caos, world_commands) {
 
 	// Cleanup
 	ghc::filesystem::remove_all("./My Worlds");
+}
+
+TEST(caos, oversight) {
+	auto sprite = Openc2eTestHelper::addBlnkSprite();
+	Openc2eTestHelper::setupBasicMap();
+	run_script("c3", R"(
+		new: simp 3 2 1 "blnk" 2 0 0
+		setv ov00 42
+		dbg: snap
+	)");
+	
+	// Verify that world_snapshot.json was created and is valid
+	std::ifstream f("world_snapshot.json");
+	ASSERT_TRUE(f.is_open());
+	std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+	f.close();
+	
+	ASSERT_FALSE(content.empty());
+	// Basic check for expected strings
+	EXPECT_NE(content.find("\"unid\":"), std::string::npos);
+	EXPECT_NE(content.find("\"ov\": [42,"), std::string::npos);
+	EXPECT_NE(content.find("\"vm\": {"), std::string::npos);
+	EXPECT_NE(content.find("\"carrying\":"), std::string::npos);
+	EXPECT_NE(content.find("\"script\":"), std::string::npos);
+	
+	// Cleanup
+	ghc::filesystem::remove("world_snapshot.json");
+	world.gallery = std::make_unique<imageManager>();
 }

@@ -18,6 +18,14 @@ This document outlines the strategy for migrating the original Creatures 3 (C3/D
 - **Entities**: Mirroring legacy structure (`Agent`, `SimpleAgent`, etc.) but using smart pointers and modern STL.
 - **Rendering**: SDL-based backend with an `imageManager`.
 
+### Phase 0: AI Oversight Suite
+> [!TIP]
+> A modern oversight layer was added to facilitate the migration of complex subsystems.
+
+- **JSON Telemetry**: Modified the engine to dump structured JSON snapshots of the entire world.
+- **VM Inspection**: Real-time tracking of Instruction Pointers and agent relationship links.
+- **AI Dashboard**: A visual tool (`tools/ai_dashboard/`) for inspecting the world state, enabling rapid parity verification between `openc2e` and the legacy engine.
+
 ## 2. Core Migration Entrypoints
 
 ### Phase 1: CAOS Parity
@@ -82,7 +90,7 @@ To ensure logical parity and prevent regressions, every migrated component must 
 
 ### Parity Testing
 - **Goal**: Direct comparison of internal state.
-- **Approach**: For complex modules like the Brain or Genetics, use serialization to dump state from both engines at specific points and diff the results.
+- **Approach**: Use the **AI Oversight Suite** to dump state from both engines. By feeding snapshots into the `ai_dashboard`, developers can visually verify that agent positions, variables, and script execution paths match perfectly across engines.
 
 ## 5. Priority List
 

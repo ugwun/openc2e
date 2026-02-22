@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Oversight Dashboard v2.1 - openc2e</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --sidebar-color: #252525;
+            --header-color: #2d2d2d;
+            --accent-color: #4CAF50;
+            --text-color: #e0e0e0;
+            --label-color: #888;
+            --border-color: #3d3d3d;
+            --selection-color: #2e7d32;
+            --vm-color: #2196F3;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: var(--header-color);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            z-index: 100;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #viewport {
+            flex: 3;
+            background-color: #000;
+            position: relative;
+            cursor: grab;
+            overflow: hidden;
+        }
+
+        #viewport:active {
+            cursor: grabbing;
+        }
+
+        #canvas {
+            display: block;
+        }
+
+        #sidebar {
+            flex: 1;
+            background-color: var(--sidebar-color);
+            border-left: 2px solid var(--border-color);
+            overflow-y: auto;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .status-bar {
+            background-color: #333;
+            padding: 5px 20px;
+            font-size: 0.8em;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+            z-index: 90;
+        }
+
+        button,
+        select {
+            background-color: #4a4a4a;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #666;
+        }
+
+        button.active {
+            background-color: var(--accent-color);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--accent-color);
+            font-size: 1.2em;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+
+        .info-block {
+            background-color: #333;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .label {
+            color: var(--label-color);
+            font-size: 0.9em;
+        }
+
+        .value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .vm-value {
+            color: var(--vm-color);
+            font-weight: bold;
+        }
+
+        .agent-list-container {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            background: #111;
+        }
+
+        .agent-list-item {
+            padding: 5px 10px;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .agent-list-item:hover {
+            background-color: #333;
+        }
+
+        .agent-list-item.selected {
+            background-color: var(--selection-color);
+        }
+
+        .agent-id {
+            color: #888;
+            font-family: monospace;
+        }
+
+        .var-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 5px;
+            font-size: 0.8em;
+            font-family: monospace;
+        }
+
+        .var-item {
+            background: #222;
+            padding: 2px 5px;
+            border-radius: 2px;
+        }
+
+        .var-name {
+            color: #aaa;
+        }
+
+        .var-val {
+            color: #fff;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 8px;
+            background: #111;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .controls-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #coords {
+            font-family: monospace;
+        }
+
+        .zoom-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>AI Oversight Dashboard <span style="font-size: 0.4em; vertical-align: middle; opacity: 0.5;">v2.1</span>
+        </h1>
+        <div class="controls-group">
+            <select id="areaJump" onchange="jumpToArea(this.value)">
+                <option value="">Jump to Area...</option>
+            </select>
+            <input type="file" id="fileInput" style="display:none" onchange="loadSnapshot(this.files[0])">
+            <button onclick="document.getElementById('fileInput').click()">Load Snapshot</button>
+            <button onclick="resetView()">Reset View</button>
+            <button onclick="toggleLayer('links')" id="layerLinks" class="active">Links: ON</button>
+            <button onclick="toggleLayer('rooms')" id="layerRooms" class="active">Rooms: ON</button>
+        </div>
+    </header>
+    <div class="status-bar">
+        <div id="statusBar">Waiting for snapshot...</div>
+        <div id="coords">X: 0, Y: 0</div>
+    </div>
+    <div class="container">
+        <div id="viewport">
+            <canvas id="canvas"></canvas>
+            <div class="zoom-info" id="zoomInfo">Zoom: 0.50x</div>
+        </div>
+        <div id="sidebar">
+            <div class="sidebar-scroll">
+                <div id="worldInfo" class="info-block">
+                    <h2>World</h2>
+                    <div><span class="label">Name:</span> <span id="worldName" class="value">-</span></div>
+                    <div><span class="label">Tick:</span> <span id="tickCount" class="value">-</span></div>
+                </div>
+
+                <div id="searchBlock">
+                    <input type="text" id="agentSearch" class="search-box" placeholder="Search agents (ID or Name)..."
+                        oninput="updateAgentList()">
+                    <div id="agentList" class="agent-list-container"></div>
+                </div>
+
+                <div id="objectInfo" class="info-block" style="display:none">
+                    <h2 id="detailTitle">Agent Detail</h2>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 10px;">
+                        <div><span class="label">UNID:</span>
+                            <div id="detUnid" class="value">-</div>
+                        </div>
+                        <div><span class="label">Classifier:</span>
+                            <div id="detClass" class="value">-</div>
+                        </div>
+                        <div><span class="label">Pos:</span>
+                            <div id="detPos" class="value">-</div>
+                        </div>
+                        <div><span class="label">Vel:</span>
+                            <div id="detVel" class="value">-</div>
+                        </div>
+                        <div><span class="label">Attr:</span>
+                            <div id="detAttr" class="value">-</div>
+                        </div>
+                    </div>
+
+                    <h3>Script Engine (VM)</h3>
+                    <div id="vmInfo"
+                        style="background: #222; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
+                        -
+                    </div>
+
+                    <h3>Relationships</h3>
+                    <div id="relInfo" style="font-size: 0.9em;">
+                        -
+                    </div>
+
+                    <h3>Variables (OVxx)</h3>
+                    <div id="ovGrid" class="var-grid"></div>
+
+                    <h3 id="nameVarsHeader" style="display:none">Named Variables</h3>
+                    <div id="nameVarsList" style="font-size: 0.8em; font-family: monospace;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const viewport = document.getElementById('viewport');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let worldData = null;
+        let selectedAgentUnid = null;
+
+        // Transform state
+        let scale = 0.5;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        let layers = {
+            links: true,
+            rooms: true
+        };
+
+        function toggleLayer(layer) {
+            layers[layer] = !layers[layer];
+            document.getElementById('layer' + layer.charAt(0).toUpperCase() + layer.slice(1)).className = layers[layer] ? 'active' : '';
+            render();
+        }
+
+        function loadSnapshot(file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    worldData = JSON.parse(e.target.result);
+                    autoFitWorld();
+                    updateSidebar();
+                    updateAgentList();
+                    updateAreaJumpList();
+                    document.getElementById('statusBar').innerText = `Snapshot loaded: ${new Date().toLocaleTimeString()}`;
+                } catch (err) {
+                    alert('Error parsing JSON: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function autoFitWorld() {
+            if (!worldData) return;
+
+            // Calculate bounding box of all metarooms
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+            worldData.map.metarooms.forEach(mr => {
+                minX = Math.min(minX, mr.rect[0]);
+                minY = Math.min(minY, mr.rect[1]);
+                maxX = Math.max(maxX, mr.rect[0] + mr.rect[2]);
+                maxY = Math.max(maxY, mr.rect[1] + mr.rect[3]);
+            });
+
+            // If no metarooms (unlikely), check agents
+            if (minX === Infinity) {
+                worldData.agents.forEach(a => {
+                    minX = Math.min(minX, a.pos[0]);
+                    minY = Math.min(minY, a.pos[1]);
+                    maxX = Math.max(maxX, a.pos[0]);
+                    maxY = Math.max(maxY, a.pos[1]);
+                });
+            }
+
+            // Defaults if world is empty
+            if (minX === Infinity) { minX = 0; minY = 0; maxX = 1000; maxY = 1000; }
+
+            // Set canvas size to fit the content
+            canvas.width = (maxX - minX);
+            canvas.height = (maxY - minY);
+
+            resetView();
+        }
+
+        function resetView() {
+            offsetX = 0;
+            offsetY = 0;
+            scale = 0.5;
+            updateZoomInfo();
+            render();
+        }
+
+        function updateZoomInfo() {
+            document.getElementById('zoomInfo').innerText = `Zoom: ${scale.toFixed(2)}x`;
+        }
+
+        function jumpToArea(mrId) {
+            if (!worldData || mrId === "") return;
+            const mr = worldData.map.metarooms.find(m => m.id == mrId);
+            if (mr) {
+                const vpRect = viewport.getBoundingClientRect();
+                scale = Math.min(vpRect.width / mr.rect[2], vpRect.height / mr.rect[3]) * 0.9;
+                offsetX = -mr.rect[0] * scale + (vpRect.width - mr.rect[2] * scale) / 2;
+                offsetY = -mr.rect[1] * scale + (vpRect.height - mr.rect[3] * scale) / 2;
+                updateZoomInfo();
+                render();
+            }
+        }
+
+        function updateAreaJumpList() {
+            const select = document.getElementById('areaJump');
+            select.innerHTML = '<option value="">Jump to Area...</option>';
+            if (!worldData) return;
+
+            worldData.map.metarooms.forEach(mr => {
+                const option = document.createElement('option');
+                option.value = mr.id;
+                option.innerText = `[${mr.id}] ${mr.background}`;
+                select.appendChild(option);
+            });
+        }
+
+        function updateAgentList() {
+            if (!worldData) return;
+            const search = document.getElementById('agentSearch').value.toLowerCase();
+            const list = document.getElementById('agentList');
+            list.innerHTML = '';
+
+            worldData.agents.forEach(a => {
+                const name = a.identify.toLowerCase();
+                const unidStr = a.unid.toString();
+                if (name.includes(search) || unidStr.includes(search)) {
+                    const item = document.createElement('div');
+                    item.className = 'agent-list-item' + (a.unid === selectedAgentUnid ? ' selected' : '');
+                    item.innerHTML = `<span>${a.identify}</span> <span class="agent-id">#${a.unid}</span>`;
+                    item.onclick = () => {
+                        selectedAgentUnid = a.unid;
+                        centerOnAgent(a);
+                        updateSidebar();
+                        updateAgentList();
+                    };
+                    list.appendChild(item);
+                }
+            });
+        }
+
+        function centerOnAgent(a) {
+            const vpRect = viewport.getBoundingClientRect();
+            // Keep current scale, just center
+            offsetX = -a.pos[0] * scale + vpRect.width / 2;
+            offsetY = -a.pos[1] * scale + vpRect.height / 2;
+            render();
+        }
+
+        function render() {
+            if (!worldData) return;
+
+            // Clear viewport
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, viewport.clientWidth, viewport.clientHeight);
+
+            // Apply camera transform
+            ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+
+            // Draw Metarooms
+            worldData.map.metarooms.forEach(mr => {
+                ctx.strokeStyle = '#444';
+                ctx.lineWidth = 2 / scale;
+                ctx.strokeRect(mr.rect[0], mr.rect[1], mr.rect[2], mr.rect[3]);
+
+                // Draw background name
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.font = `${14 / scale}px Arial`;
+                ctx.fillText(mr.background, mr.rect[0] + 10, mr.rect[1] + 20 / scale);
+
+                if (layers.rooms) {
+                    mr.rooms.forEach(r => {
+                        ctx.fillStyle = 'rgba(0, 255, 0, 0.03)';
+                        const rw = r.bounds[1] - r.bounds[0];
+                        const rh = r.bounds[5] - r.bounds[2];
+                        ctx.fillRect(r.bounds[0], r.bounds[2], rw, rh);
+                        ctx.strokeStyle = 'rgba(0, 255, 0, 0.1)';
+                        ctx.lineWidth = 1 / scale;
+                        ctx.strokeRect(r.bounds[0], r.bounds[2], rw, rh);
+                    });
+                }
+            });
+
+            if (layers.links) {
+                worldData.agents.forEach(a => {
+                    const drawLink = (targetId, color) => {
+                        if (targetId && targetId !== -1) {
+                            const target = worldData.agents.find(x => x.unid === targetId);
+                            if (target) {
+                                ctx.strokeStyle = color;
+                                ctx.lineWidth = 2 / scale;
+                                ctx.setLineDash([5 / scale, 5 / scale]);
+                                ctx.beginPath();
+                                ctx.moveTo(a.pos[0], a.pos[1]);
+                                ctx.lineTo(target.pos[0], target.pos[1]);
+                                ctx.stroke();
+                                ctx.setLineDash([]);
+                            }
+                        }
+                    };
+                    drawLink(a.vm?.targ, 'rgba(33, 150, 243, 0.5)'); // Blue for TARG
+                    drawLink(a.carrying, 'rgba(255, 152, 0, 0.5)'); // Orange for carrying
+                });
+            }
+
+            worldData.agents.forEach(a => {
+                const isSelected = a.unid === selectedAgentUnid;
+                ctx.fillStyle = isSelected ? '#ffeb3b' : (a.vm?.stopped === false ? '#2196F3' : '#4caf50');
+
+                ctx.beginPath();
+                ctx.arc(a.pos[0], a.pos[1], isSelected ? 8 / scale : 5 / scale, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (isSelected) {
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2 / scale;
+                    ctx.stroke();
+                }
+
+                // Show labels for creatures or selected agents
+                if (a.classifier[0] === 4 || isSelected) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = `${12 / scale}px Arial`;
+                    ctx.fillText(a.identify.split(' ')[0], a.pos[0] + 8 / scale, a.pos[1]);
+                }
+            });
+        }
+
+        function updateSidebar() {
+            if (!worldData) return;
+
+            document.getElementById('worldName').innerText = worldData.name;
+            document.getElementById('tickCount').innerText = worldData.tickcount;
+
+            const detailBlock = document.getElementById('objectInfo');
+            if (selectedAgentUnid === null) {
+                detailBlock.style.display = 'none';
+                return;
+            }
+
+            const a = worldData.agents.find(agent => agent.unid === selectedAgentUnid);
+            if (!a) {
+                detailBlock.style.display = 'none';
+                return;
+            }
+
+            detailBlock.style.display = 'block';
+            document.getElementById('detailTitle').innerText = a.identify;
+            document.getElementById('detUnid').innerText = a.unid;
+            document.getElementById('detClass').innerText = a.classifier.join(' ');
+            document.getElementById('detPos').innerText = `${a.pos[0].toFixed(1)}, ${a.pos[1].toFixed(1)}`;
+            document.getElementById('detVel').innerText = `${a.vel[0].toFixed(2)}, ${a.vel[1].toFixed(2)}`;
+            document.getElementById('detAttr').innerText = a.attr;
+
+            // VM Info
+            const vm = a.vm;
+            const vmDiv = document.getElementById('vmInfo');
+            if (vm && !vm.present === false) {
+                let scriptText = vm.script ? `[${vm.script.join('.')}]` : "NONE";
+                vmDiv.innerHTML = `
+                    <div>State: <span class="${vm.stopped ? '' : 'vm-value'}">${vm.stopped ? "IDLE" : "RUNNING"}</span></div>
+                    <div>Script: ${scriptText}</div>
+                    <div>IP: ${vm.ip[0]} -> ${vm.ip[1]}</div>
+                    <div>Stack: ${vm.stack_size}</div>
+                    <div>TARG: ${vm.targ !== -1 ? '#' + vm.targ : 'null'}</div>
+                `;
+            } else {
+                vmDiv.innerText = "No VM data available.";
+            }
+
+            // Relationships
+            document.getElementById('relInfo').innerHTML = `
+                <div>Carrying: ${a.carrying !== -1 ? '#' + a.carrying : 'none'}</div>
+                <div>CarriedBy: ${a.carriedby !== -1 ? '#' + a.carriedby : 'none'}</div>
+                <div>InVehicle: ${a.invehicle !== -1 ? '#' + a.invehicle : 'none'}</div>
+            `;
+
+            // OV Grid
+            const ovGrid = document.getElementById('ovGrid');
+            ovGrid.innerHTML = '';
+            a.ov.forEach((v, i) => {
+                const item = document.createElement('div');
+                item.className = 'var-item';
+                item.innerHTML = `<span class="var-name">ov${i.toString().padStart(2, '0')}:</span> <span class="var-val">${v}</span>`;
+                ovGrid.appendChild(item);
+            });
+
+            // Name Vars
+            const nameVarsList = document.getElementById('nameVarsList');
+            const nameVarsHeader = document.getElementById('nameVarsHeader');
+            const keys = Object.keys(a.name_variables);
+            if (keys.length > 0) {
+                nameVarsHeader.style.display = 'block';
+                nameVarsList.innerHTML = keys.map(k => `<div>${k}: ${a.name_variables[k]}</div>`).join('');
+            } else {
+                nameVarsHeader.style.display = 'none';
+                nameVarsList.innerHTML = '';
+            }
+        }
+
+        // --- Interaction Handlers ---
+
+        viewport.onmousedown = function (e) {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        };
+
+        window.onmouseup = function () {
+            isDragging = false;
+        };
+
+        window.onmousemove = function (e) {
+            if (isDragging) {
+                const dx = e.clientX - lastMouseX;
+                const dy = e.clientY - lastMouseY;
+                offsetX += dx;
+                offsetY += dy;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                render();
+            }
+
+            // Update crosshair coords
+            if (worldData) {
+                const rect = viewport.getBoundingClientRect();
+                const worldX = (e.clientX - rect.left - offsetX) / scale;
+                const worldY = (e.clientY - rect.top - offsetY) / scale;
+                document.getElementById('coords').innerText = `X: ${Math.round(worldX)}, Y: ${Math.round(worldY)}`;
+            }
+        };
+
+        viewport.onwheel = function (e) {
+            if (!worldData) return;
+            e.preventDefault();
+
+            const rect = viewport.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // World coordinate under mouse
+            const wx = (mouseX - offsetX) / scale;
+            const wy = (mouseY - offsetY) / scale;
+
+            const zoomSpeed = 0.1;
+            const delta = -Math.sign(e.deltaY) * zoomSpeed;
+            const newScale = Math.max(0.01, Math.min(10, scale + delta));
+
+            // Adjust offset to keep mouse point fixed
+            offsetX = mouseX - wx * newScale;
+            offsetY = mouseY - wy * newScale;
+            scale = newScale;
+
+            updateZoomInfo();
+            render();
+        };
+
+        viewport.onclick = function (e) {
+            if (!worldData || isDragging) return;
+
+            const rect = viewport.getBoundingClientRect();
+            const worldX = (e.clientX - rect.left - offsetX) / scale;
+            const worldY = (e.clientY - rect.top - offsetY) / scale;
+
+            let closest = null;
+            let minDist = 15 / scale;
+
+            worldData.agents.forEach(a => {
+                const dist = Math.sqrt(Math.pow(a.pos[0] - worldX, 2) + Math.pow(a.pos[1] - worldY, 2));
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = a;
+                }
+            });
+
+            if (closest) {
+                selectedAgentUnid = closest.unid;
+                updateSidebar();
+                updateAgentList();
+                render();
+            }
+        };
+
+        // Resize handler
+        window.onresize = () => render();
+
+    </script>
+</body>
+
+</html>
