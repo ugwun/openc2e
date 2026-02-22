@@ -287,6 +287,35 @@ std::vector<fs::path> getCatalogueDirectories() {
 	return result;
 }
 
+std::vector<std::string> getWorldList() {
+	std::vector<std::string> result;
+	for (auto d : data_directories) {
+		fs::path worlddir = getDirectory(d, DIRECTORY_WORLDS);
+		std::error_code err;
+		if (fs::exists(worlddir, err) && fs::is_directory(worlddir, err)) {
+			for (const auto& entry : fs::directory_iterator(worlddir, err)) {
+				if (fs::is_directory(entry, err)) {
+					result.push_back(entry.path().filename().string());
+				}
+			}
+		}
+	}
+	std::sort(result.begin(), result.end());
+	result.erase(std::unique(result.begin(), result.end()), result.end());
+	return result;
+}
+
+void createWorldDirectory(std::string name) {
+	fs::path worlddir = getDirectory(data_directories.back(), DIRECTORY_WORLDS);
+	fs::create_directories(worlddir / name);
+}
+
+void deleteWorldDirectory(std::string name) {
+	fs::path worlddir = getDirectory(data_directories.back(), DIRECTORY_WORLDS);
+	std::error_code err;
+	fs::remove_all(worlddir / name, err);
+}
+
 fs::path getWorldSwitcherBootstrapDirectory() {
 	assert(data_directories.size() > 0);
 	auto directory = getDirectory(data_directories[0], DIRECTORY_BOOTSTRAP);

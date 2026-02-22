@@ -62,6 +62,8 @@ class World {
   public:
 	size_t vmpool_size() const { return vmpool.size(); }
 	bool quitting, saving, paused;
+	std::string name;
+	std::string moniker;
 
 	std::unique_ptr<Map> map;
 

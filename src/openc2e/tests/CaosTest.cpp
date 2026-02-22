@@ -906,3 +906,48 @@ TEST(caos, robustness) {
 	)");
 	world.gallery = std::make_unique<imageManager>();
 }
+
+TEST(caos, world_commands) {
+	struct auto_data_directories {
+		decltype(data_directories) original_data_directories;
+		auto_data_directories() {
+			original_data_directories = data_directories;
+			data_directories = {DataDirectory(".")};
+		}
+		~auto_data_directories() { data_directories = original_data_directories; }
+	} auto_directories;
+
+	// Setup temporary world directories
+	ghc::filesystem::create_directories("./My Worlds/World1");
+	ghc::filesystem::create_directories("./My Worlds/World2");
+
+	world.name = "TestWorld";
+	world.moniker = "test-moniker";
+
+	run_script("c3", R"(
+		dbg: asrt wnam eq "TestWorld"
+		dbg: asrt wuid eq "test-moniker"
+		dbg: asrt nwld eq 2
+		* Note: WRLD listing is sorted. N comes before W.
+		* sorted: World1, World2
+		dbg: asrt wrld 0 eq "World1"
+		dbg: asrt wrld 1 eq "World2"
+		dbg: asrt wnti "World1" eq 0
+		dbg: asrt wnti "World2" eq 1
+		dbg: asrt wnti "NonExistent" eq -1
+		
+		wrld "NewWorld"
+		dbg: asrt nwld eq 3
+		* sorted: NewWorld, World1, World2
+		dbg: asrt wrld 0 eq "NewWorld"
+		dbg: asrt wrld 1 eq "World1"
+		dbg: asrt wnti "NewWorld" eq 0
+		
+		delw "World1"
+		dbg: asrt nwld eq 2
+		dbg: asrt wnti "World1" eq -1
+	)");
+
+	// Cleanup
+	ghc::filesystem::remove_all("./My Worlds");
+}

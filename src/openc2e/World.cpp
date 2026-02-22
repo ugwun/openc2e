@@ -76,6 +76,9 @@ World::World() {
 	map.reset(new Map());
 	praymanager.reset(new prayManager());
 	scriptorium.reset(new Scriptorium());
+
+	name = "Unnamed World";
+	moniker = generateMoniker("dock");
 }
 
 World::~World() {

@@ -1,113 +1,98 @@
-# Creatures 3 → openc2e: Master Migration Plan
+# Creatures 3 Engine Migration Plan
 
-This document serves as the authoritative guide for migrating behavioral logic and architectural patterns from the original Creatures 3 (C3) into the modern openc2e engine. 
+This document outlines the strategy for migrating the original Creatures 3 (C3/DS) engine code to the modern `openc2e` architecture.
 
+## 1. Architectural Overview
+
+### Legacy Engine (creatures3)
+- **Language**: C++ (Legacy, Visual Studio 6.0 era)
+- **Core Loop**: `App::UpdateApp()` handles events, ticks, and display.
+- **CAOS VM**: Centralized in `CAOSMachine.cpp`, with handlers in `FamilyHandlers.cpp`, `AgentHandlers.cpp`, etc. Command metadata is stored in `CAOSTables.cpp`.
+- **Entities**: Modular `Agent` base class. Highly specialized `Creature` class using a "Faculty" system (Sensory, Motor, etc.).
+- **Rendering**: Custom `DisplayEngine` managing `EntityImage`, `Background`, and `Camera`.
+
+### Modern Engine (openc2e)
+- **Language**: Modern C++ (C++17/20)
+- **Core Loop**: `Engine::tick()` and `Engine::update()` using SDL2.
+- **CAOS VM**: `caosVM.cpp` with handlers in `caosVM_*.cpp`. Uses metadata in comments for command registration.
+- **Entities**: Mirroring legacy structure (`Agent`, `SimpleAgent`, etc.) but using smart pointers and modern STL.
+- **Rendering**: SDL-based backend with an `imageManager`.
+
+## 2. Core Migration Entrypoints
+
+### Phase 1: CAOS Parity
+- **Status**: [IN PROGRESS] Foundational world commands (WNAM, WUID, NWLD, WRLD, WNTI, DELW) implemented.
+- **Action**: Systematic porting of stubbed CAOS commands, prioritized by engine subsystem.
+- **Tasks**:
+    - [x] Implement world identification: `WNAM`, `WUID`.
+    - [x] Implement world directory management: `NWLD`, `WRLD` (RV/Command), `WNTI`, `DELW`.
+    - [/] Categorize remaining `stub` and `maybe` commands:
+        - **Subsystem: Agent Interaction** (High Priority)
+            - Port `caosVM_agent.cpp` and `caosVM_compound.cpp` stubs.
+        - **Subsystem: Creature Life & Bio** (High Priority)
+            - Port `caosVM_creatures.cpp`, `caosVM_genetics.cpp`, and `caosVM_history.cpp` stubs.
+        - **Subsystem: Environment & Physics** (Medium Priority)
+            - Port `caosVM_map.cpp` and `caosVM_motion.cpp` stubs.
+        - **Subsystem: Multimedia & Input** (Medium Priority)
+            - Port `caosVM_input.cpp`, `caosVM_sounds.cpp`, and `caosVM_camera.cpp` stubs.
+    - [x] Establish automated verification suite in `CaosTest.cpp` for core VM commands [x].
+
+### Phase 2: Creature Faculty System
 > [!NOTE]
-> This is a living document. As we complete phases and discover new complexities, we will update the strategies and priorities accordingly.
+> The original engine's "Faculty" system is more modular than `openc2e`'s current implementation.
 
----
+- **Action**: Port the Faculty architecture to `openc2e`.
+- **Target Files**:
+    - `creatures3/engine/Creature/SensoryFaculty.cpp` -> `openc2e/src/openc2e/creatures/SensoryFaculty.cpp`
+    - `creatures3/engine/Creature/LinguisticFaculty.cpp` -> `openc2e/src/openc2e/creatures/LinguisticFaculty.cpp`
+    - etc.
+- **Benefit**: Allows for better debugging of specific creature behaviors (e.g., what exactly are they seeing/hearing).
 
-## 🏗️ Architectural Mapping
+### Phase 3: Physics and CA (Cellular Automata)
+- **Action**: Migrate the environment logic.
+- **Target Files**:
+    - `creatures3/engine/Map/Map.cpp`
+    - `creatures3/engine/Map/CA.cpp`
+- **Focus**: Parity in room connectivity, air flow, and temperature simulation.
 
-Our goal is behavioral parity. We achieve this by mapping original C3 components to their modern openc2e equivalents and filling the identified "logic gaps."
+### Phase 4: Persistence and Archiving
+- **Action**: Ensure `openc2e` can read/write the exact same world format as the original.
+- **Target Files**:
+    - `creatures3/engine/CreaturesArchive.cpp`
+    - `openc2e/src/openc2e/ser/` (Serialization logic)
 
-```mermaid
-graph TD
-    subgraph "Creatures 3 (Original)"
-        C3_App["App (engine/App.cpp)"]
-        C3_World["World (engine/World.cpp)"]
-        C3_Agents["Agents (Agent, Vehicle, Parts)"]
-        C3_Caos["Caos (VM, Lexer, Handlers)"]
-        C3_Map["Map (Map.cpp, Pathfinding)"]
-        C3_Creature["Creature (Intelligence, Biology)"]
-    end
+## 3. Migration Process
 
-    subgraph "openc2e (Modern)"
-        OC_Engine["Engine.cpp"]
-        OC_World["World.cpp"]
-        OC_Agents["Agent.cpp, Vehicles.cpp"]
-        OC_CaosVM["caosVM, bytecode"]
-        OC_Map["Map, MetaRoom, Room"]
-        OC_Creature["creatures/ (Brain, Biochem, AI)"]
-    end
+1.  **Selection**: Pick a specific CAOS command or a Creature faculty.
+2.  **Analysis**: Study the original implementation in the `creatures3` repository.
+3.  **Adaptation**: Rewrite the logic in modern C++, replacing legacy MFC/Win32 calls with `openc2e` equivalents (SDL, STL, custom types).
+4.  **Integration**: Add the new code to `openc2e` and update appropriate headers.
+5.  **Validation**: Use CAOS scripts to verify the behavior matches the original engine.
 
-    C3_App --> OC_Engine
-    C3_World --> OC_World
-    C3_Agents --> OC_Agents
-    C3_Caos --> OC_CaosVM
-    C3_Map --> OC_Map
-    C3_Creature --> OC_Creature
-```
+## 4. Testing and Validation Strategy
+To ensure logical parity and prevent regressions, every migrated component must pass a rigorous testing suite.
 
----
+### Unit Testing
+- **Goal**: Verify individual functions (e.g., CAOS commands, biochemical reactions) behave exactly like the original.
+- **Approach**: Create tests in `src/openc2e/tests/` using the existing testing framework. For CAOS commands, test edge cases (e.g., invalid agent handles, out-of-bounds parameters) to ensure error handling parity.
 
-## 🗺️ Roadmap: The 8 Phases
+### Integration Testing (CAOS Scripts)
+- **Goal**: Ensure complex interactions between agents and the world function correctly.
+- **Approach**: Run original world scripts and verify world state changes. Compare `openc2e` debug output with the original engine's `C2eDebug` logs for the same scripts.
 
-Each phase is designed to build upon the stability of the previous one.
+### Parity Testing
+- **Goal**: Direct comparison of internal state.
+- **Approach**: For complex modules like the Brain or Genetics, use serialization to dump state from both engines at specific points and diff the results.
 
-### Phase 1: CAOS Virtual Machine (Status: COMPLETE ✅)
-*   **Focus**: Parity of the scripting engine.
-*   **Audit Findings**: 141 missing commands, 74 stubbed. High gaps in `BRN:`, `GENE:`, and `HIST:`.
-*   **Next Step**: Implementation of these missing handlers will occur during their respective subsystem phases.
+## 5. Priority List
 
-### Phase 2: Agent System (Status: COMPLETE ✅)
-*   **Focus**: Filling the ~30KB logic gap in `Agent.cpp`.
-*   **Critical Gaps**:
-    *   **Movement & Collision**: Original C3 logic for agent physics and "bump" behavior.
-    *   **Port Connectivity**: Fully implementing `PortBundle` and inter-agent synchronization.
-    *   **Vehicles**: "Greedy cabin" logic and advanced containment.
+1.  **CAOS Core**: Flow control, variables, basic agent manipulation.
+2.  **Sensory Faculty**: Vision and hearing logic (this is the most complex part of creature behavior).
+3.  **Genome Translation**: Ensure all genes are expressed correctly.
+4.  **Networking (P2P)**: Porting the "Babel" or Warp logic for world-to-world travel.
 
-### Phase 3: Creature System (Status: COMPLETE ✅)
-*   **Focus**: Implementation of cortical logic and physiological simulation.
-*   **Sub-components**:
-    *   **Brain (`BRN:`)**: Porting neuro-update formulas from `Tract.cpp` (35KB) and `Lobe.cpp`.
-    *   **Biochemistry**: Aligning reaction rates, chemical decay, and organ interactions.
-    *   **Faculties**: Sensory (perception), Linguistic (word recognition), and Motor (brain-driven action).
-    *   **Skeleton**: Porting 103KB of animation and pose logic (the largest mechanical gap).
+## 5. Potential Pitfalls
 
-### Phase 4: Map & World Geometry
-*   **Focus**: The highest mechanical priority outside AI.
-*   **Challenge**: The C3 `Map.cpp` is 214KB vs openc2e's 10KB.
-*   **Logic to Port**: Cellular Automata (CA) for heat/nutrients, pathfinding graphs, and room-link navigation.
-
-### Phase 5: Display & Rendering Logic
-*   **Focus**: Handling camera kinematics and world aesthetics.
-*   **Logic to Port**: Smooth scrolling, multi-viewport tracking, and the `TintManager` for environmental lighting effects.
-
-### Phase 6: Sound & Music Engine
-*   **Focus**: The MNG (Dynamic Music) expression language.
-*   **Logic to Port**: Mood-based track blending, fading, and layering logic from `MusicManager.cpp`.
-
-### Phase 7: Serialization (Save/Load)
-*   **Focus**: Ensuring world persistence is robust and matches C3's internal state.
-*   **Logic to Port**: MFC-style serialization mappings and the "Flight Recorder" for error tracing.
-
-### Phase 8: Infrastructure & Multi-language Support
-*   **Focus**: Final polish, registry handling, and PRAY tool parity.
-
----
-
-## 📉 Critical Logic Gaps (Metric: File Size & Complexity)
-
-We track progress by bridging the code-size difference between the original and modern implementations.
-
-| Component | C3 Size | openc2e Size | Gap | Priority |
-| :--- | :--- | :--- | :--- | :--- |
-| **Map System** | 238KB | 20KB | **218KB** | 🔴 Critical |
-| **Skeleton/Body** | 103KB | 25KB | **78KB** | 🔴 Critical |
-| **Agent Base** | 75KB | 43KB | **32KB** | 🔴 Critical |
-| **CAOS VM** | 145KB | Generated | **Variable** | ✅ Verified |
-
----
-
-## ✅ Verification Protocol
-
-For every component migrated, we follow this verified lifecycle:
-1.  **Code Audit**: Side-by-side comparison of original and modern handlers.
-2.  **Unit Tests**: Use `gtest` (e.g., `VoiceDataTest.cpp`) to verify implementation bounds.
-3.  **CAOS Integration**: Run `ctest` with actual CAOS scripts.
-4.  **Live Run**: Launch the engine with Docking Station data to verify visual/interactive parity.
-
----
-*Created on: 2026-02-21*
-*Approved by: USER*
+- **Endianness**: Original was x86/Win32. `openc2e` aims for cross-platform.
+- **Frame Timing**: The original relied on 20fps or specific tick rates.
+- **Integer Precision**: Some biochemistry and brain logic might rely on specific fixed-point or integer overflow behaviors.

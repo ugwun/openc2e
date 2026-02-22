@@ -84,6 +84,9 @@ ghc::filesystem::path getUserDataDir();
 ghc::filesystem::path getWorldSwitcherBootstrapDirectory();
 std::vector<ghc::filesystem::path> getBootstrapDirectories();
 std::vector<ghc::filesystem::path> getCatalogueDirectories();
+std::vector<std::string> getWorldList();
+void createWorldDirectory(std::string name);
+void deleteWorldDirectory(std::string name);
 
 ghc::filesystem::path homeDirectory();
 ghc::filesystem::path storageDirectory();

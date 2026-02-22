@@ -17,6 +17,7 @@
  *
  */
 
+#include "PathResolver.h"
 #include "World.h"
 #include "caosVM.h"
 #include "common/throw_ifnot.h"
@@ -63,8 +64,7 @@ void c_QUIT(caosVM*) {
  Returns the name of the current world.
 */
 void v_WNAM(caosVM* vm) {
-	// result.setString(world.name);
-	vm->result.setString("oh"); // TODO
+	vm->result.setString(world.name);
 }
 
 /**
@@ -74,8 +74,7 @@ void v_WNAM(caosVM* vm) {
  Returns the unique identifier (moniker?) of the current world.
 */
 void v_WUID(caosVM* vm) {
-	// result.setString(world.moniker);
-	vm->result.setString("dock-aaaaa-bbbbb-ccccc-ddddd"); // TODO
+	vm->result.setString(world.moniker);
 }
 
 /**
@@ -100,7 +99,7 @@ void c_WTNT(caosVM* vm) {
  %status stub
 */
 void v_NWLD(caosVM* vm) {
-	vm->result.setInt(0); // TODO
+	vm->result.setInt(getWorldList().size());
 }
 
 /**
@@ -110,9 +109,8 @@ void v_NWLD(caosVM* vm) {
  Create a new world directory to prepare for the creation of the specified world.
 */
 void c_WRLD(caosVM* vm) {
-	VM_PARAM_STRING_UNUSED(name)
-
-	// TODO
+	VM_PARAM_STRING(name)
+	createWorldDirectory(name);
 }
 
 /**
@@ -122,9 +120,13 @@ void c_WRLD(caosVM* vm) {
  Return the name of the specified world (zero-indexed, see NWLD).
 */
 void v_WRLD(caosVM* vm) {
-	VM_PARAM_INTEGER_UNUSED(world)
+	VM_PARAM_INTEGER(worldindex)
 
-	THROW_IFNOT(false); // TODO
+	std::vector<std::string> worlds = getWorldList();
+	if (worldindex < 0 || worldindex >= (int)worlds.size()) {
+		THROW_IFNOT(false); // TODO: throw CAOS error
+	}
+	vm->result.setString(worlds[worldindex]);
 }
 
 /**
@@ -156,9 +158,16 @@ void v_PSWD(caosVM* vm) {
  Return the world identifier for the specified world name, or -1 if it doesn't exist.
 */
 void v_WNTI(caosVM* vm) {
-	VM_PARAM_STRING_UNUSED(name)
+	VM_PARAM_STRING(name)
 
-	vm->result.setInt(-1); // TODO
+	std::vector<std::string> worlds = getWorldList();
+	for (size_t i = 0; i < worlds.size(); i++) {
+		if (worlds[i] == name) {
+			vm->result.setInt(i);
+			return;
+		}
+	}
+	vm->result.setInt(-1);
 }
 
 /**
@@ -168,9 +177,8 @@ void v_WNTI(caosVM* vm) {
  Delete the specified world directory and all contents.
 */
 void c_DELW(caosVM* vm) {
-	VM_PARAM_STRING_UNUSED(name)
-
-	THROW_IFNOT(false); // TODO
+	VM_PARAM_STRING(name)
+	deleteWorldDirectory(name);
 }
 
 /* vim: set noet: */
