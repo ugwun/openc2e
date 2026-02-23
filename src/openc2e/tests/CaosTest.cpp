@@ -869,7 +869,7 @@ TEST(caos, ports) {
 		
 		new: simp 3 2 1 "blnk" 2 0 0
 		seta va01 targ
-		prt: inew 0 0 0 "in" "desc" 100 * message 100
+		prt: inew 0 "in" "desc" 0 0 100 * message 100
 		
 		* connect them
 		prt: join va00 0 va01 0

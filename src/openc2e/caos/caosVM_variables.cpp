@@ -154,20 +154,24 @@ void c_SETA(caosVM* vm) {
 
  Agent-local variables (exist only in the current agent's VM) from TARG, with xx being from 00 to 99.  Examples: OV01, OV45.
  */
-/**
- OBVx (variable)
- %status maybe
- %stackdelta 0
- %variants c1 c2
+void v_OVxx(caosVM* vm) {
+	VM_PARAM_INTEGER(index);
+	THROW_IFNOT(index >= 0 && index < 100);
+	if (!vm->targ) {
+		vm->valueStack.push_back(caosValue());
+		return;
+	}
+	vm->valueStack.push_back(vm->targ->var[index]);
+}
 
- Like OVxx, but restricted to 0-2 in C1, or 0-9 in C2. Legacy from Creatures 1.
-*/
-// TODO: restrict to 0-2 in C1?
-CAOS_LVALUE_TARG(OVxx,
-				 VM_PARAM_INTEGER(index);
-				 THROW_IFNOT(index >= 0 && index < 100),
-				 vm->targ->var[index],
-				 vm->targ->var[index] = newvalue)
+void s_OVxx(caosVM* vm) {
+	VM_PARAM_INTEGER(index);
+	THROW_IFNOT(index >= 0 && index < 100);
+	VM_PARAM_VALUE(newvalue);
+	if (!vm->targ)
+		return;
+	vm->targ->var[index] = newvalue;
+}
 
 /**
  TYPE (integer) value (anything)

@@ -648,7 +648,7 @@ void Agent::physicsTick() {
 	}
 
 	if (suffercollisions()) {
-		float lastdistance = 1000000.0f;
+		float lastdistance = 1e12f;
 		bool collided = false;
 		Line wall; // only valid when collided
 		unsigned int collidedirection = 0; // only valid when collided
@@ -699,8 +699,7 @@ void Agent::physicsTick() {
 				dist = xdiff * xdiff + ydiff * ydiff;
 			}
 
-			if (dist >= lastdistance) {
-				assert(i != 0); // this had better not be our first collision!
+			if (i != 0 && dist >= lastdistance) {
 				continue; // further away than a previous collision
 			}
 

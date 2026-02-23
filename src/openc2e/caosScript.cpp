@@ -601,6 +601,17 @@ void caosScript::parseloop(int state, void* info) {
 			int scrp = bits[3];
 			scripts.push_back(std::shared_ptr<script>(new script(d, filename, fmly, gnus, spcs, scrp)));
 			current = scripts.back();
+
+			caostoken* peek = tokenPeek();
+			if (peek && logicalType(peek) == TOK_CONST && peek->type == caostoken::TOK_STRING) {
+				caostoken* bodytok = getToken();
+				std::vector<caostoken> bodytokens;
+				lexcaos(bodytokens, bodytok->stringval());
+				for (auto& bt : bodytokens) {
+					bt.lineno += bodytok->lineno - 1;
+				}
+				tokens->insert(tokens->begin() + curindex, bodytokens.begin(), bodytokens.end());
+			}
 		} else if (t->word() == "rscr") {
 			if (state == ST_INSTALLER || state == ST_BODY || state == ST_REMOVAL)
 				state = ST_REMOVAL;

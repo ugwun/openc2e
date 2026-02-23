@@ -99,10 +99,10 @@ void v_PRT_FROM(caosVM* vm) {
 void c_PRT_INEW(caosVM* vm) {
 	VM_VERIFY_SIZE(6)
 	VM_PARAM_INTEGER(msgnum)
-	VM_PARAM_STRING(desc)
-	VM_PARAM_STRING(name)
 	VM_PARAM_INTEGER(y)
 	VM_PARAM_INTEGER(x)
+	VM_PARAM_STRING(desc)
+	VM_PARAM_STRING(name)
 	VM_PARAM_INTEGER(id)
 
 	valid_agent(vm->targ);
@@ -240,10 +240,10 @@ void v_PRT_NAME(caosVM* vm) {
 */
 void c_PRT_ONEW(caosVM* vm) {
 	VM_VERIFY_SIZE(5)
-	VM_PARAM_STRING(desc)
-	VM_PARAM_STRING(name)
 	VM_PARAM_INTEGER(y)
 	VM_PARAM_INTEGER(x)
+	VM_PARAM_STRING(desc)
+	VM_PARAM_STRING(name)
 	VM_PARAM_INTEGER(id)
 
 	valid_agent(vm->targ);

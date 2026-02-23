@@ -438,7 +438,7 @@ void c_POSE(caosVM* vm) {
 void c_ATTR(caosVM* vm) {
 	VM_VERIFY_SIZE(1)
 	VM_PARAM_INTEGER(attr)
-	valid_agent(vm->targ);
+	if (!vm->targ) return;
 
 	bool oldfloat = vm->targ->floatable();
 	vm->targ->setAttributes(attr);
@@ -461,7 +461,10 @@ void c_ATTR(caosVM* vm) {
  Attributes of the TARG agent.
 */
 void v_ATTR(caosVM* vm) {
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setInt(0);
+		return;
+	}
 	vm->result.setInt(vm->targ->getAttributes());
 }
 void s_ATTR(caosVM* vm) {
@@ -483,7 +486,7 @@ void s_ATTR(caosVM* vm) {
 void c_TICK(caosVM* vm) {
 	VM_VERIFY_SIZE(1)
 	VM_PARAM_INTEGER(tickrate)
-	valid_agent(vm->targ);
+	if (!vm->targ) return;
 	vm->targ->setTimerRate(tickrate);
 }
 
@@ -497,7 +500,7 @@ void c_BHVR(caosVM* vm) {
 	VM_VERIFY_SIZE(1)
 	VM_PARAM_INTEGER(bhvr)
 
-	valid_agent(vm->targ);
+	if (!vm->targ) return;
 
 	// reset bhvr
 	vm->targ->cr_can_push = vm->targ->cr_can_pull = vm->targ->cr_can_stop =
@@ -561,7 +564,10 @@ CAOS_LVALUE_SIMPLE(FROM_ds, vm->from)
 void v_POSE(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
 
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setInt(-1);
+		return;
+	}
 
 	SpritePart* p = vm->getCurrentSpritePart();
 	if (p)
@@ -599,7 +605,7 @@ void c_ANIM(caosVM* vm) {
 	VM_VERIFY_SIZE(1)
 	VM_PARAM_BYTESTR(bs)
 
-	valid_agent(vm->targ);
+	if (!vm->targ) return;
 
 	AnimatablePart* p = vm->getCurrentAnimatablePart();
 	THROW_IFNOT(p);
@@ -710,7 +716,7 @@ void c_BASE(caosVM* vm) {
 	VM_VERIFY_SIZE(1)
 	VM_PARAM_INTEGER(index)
 
-	valid_agent(vm->targ);
+	if (!vm->targ) return;
 
 	SpritePart* p = vm->getCurrentSpritePart();
 	THROW_IFNOT(p);
@@ -726,6 +732,11 @@ void c_BASE(caosVM* vm) {
 */
 void v_BASE(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
+
+	if (!vm->targ) {
+		vm->result.setInt(-1);
+		return;
+	}
 
 	SpritePart* p = vm->getCurrentSpritePart();
 	if (p)
@@ -743,7 +754,10 @@ void v_BASE(caosVM* vm) {
 void v_BHVR(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
 
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setInt(0);
+		return;
+	}
 
 	unsigned char bvr = 0;
 
@@ -808,7 +822,10 @@ void v_CARR_c1(caosVM* vm) {
 */
 void v_FMLY(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setInt(0);
+		return;
+	}
 	vm->result.setInt(vm->targ->family);
 }
 
@@ -821,7 +838,10 @@ void v_FMLY(caosVM* vm) {
 */
 void v_GNUS(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setInt(0);
+		return;
+	}
 	vm->result.setInt(vm->targ->genus);
 }
 
@@ -834,7 +854,10 @@ void v_GNUS(caosVM* vm) {
 */
 void v_SPCS(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setInt(0);
+		return;
+	}
 	vm->result.setInt(vm->targ->species);
 }
 
@@ -846,7 +869,10 @@ void v_SPCS(caosVM* vm) {
 */
 void v_PLNE(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setInt(0);
+		return;
+	}
 	vm->result.setInt(vm->targ->getZOrder());
 }
 
@@ -966,7 +992,7 @@ void c_SHOW(caosVM* vm) {
 	VM_VERIFY_SIZE(1)
 	VM_PARAM_INTEGER(visibility)
 	THROW_IFNOT((visibility == 0) || (visibility == 1));
-	valid_agent(vm->targ);
+	if (!vm->targ) return;
 	vm->targ->visible = visibility;
 }
 
@@ -975,7 +1001,10 @@ void c_SHOW(caosVM* vm) {
  %status maybe
 */
 void v_SHOW(caosVM* vm) {
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setInt(0);
+		return;
+	}
 	vm->result.setInt(vm->targ->visible ? 1 : 0);
 }
 
@@ -988,7 +1017,10 @@ void v_SHOW(caosVM* vm) {
 */
 void v_POSX(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setFloat(0.0f);
+		return;
+	}
 	vm->result.setFloat(vm->targ->x + (vm->targ->getWidth() / 2.0f));
 }
 
@@ -1001,7 +1033,10 @@ void v_POSX(caosVM* vm) {
 */
 void v_POSY(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setFloat(0.0f);
+		return;
+	}
 	vm->result.setFloat(vm->targ->y + (vm->targ->getHeight() / 2.0f));
 }
 
@@ -1017,7 +1052,7 @@ void c_FRAT(caosVM* vm) {
 	VM_PARAM_INTEGER(framerate)
 
 	THROW_IFNOT(framerate >= 1 && framerate <= 255);
-	valid_agent(vm->targ);
+	if (!vm->targ) return;
 
 	SpritePart* p = vm->getCurrentSpritePart();
 	THROW_IFNOT(p);
@@ -1147,7 +1182,10 @@ void v_PUHL(caosVM* vm) {
 void v_POSL(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
 
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setFloat(0.0f);
+		return;
+	}
 	vm->result.setFloat(vm->targ->x);
 }
 
@@ -1161,7 +1199,10 @@ void v_POSL(caosVM* vm) {
 void v_POST(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
 
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setFloat(0.0f);
+		return;
+	}
 	vm->result.setFloat(vm->targ->y);
 }
 
@@ -1175,7 +1216,10 @@ void v_POST(caosVM* vm) {
 void v_POSR(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
 
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setFloat(0.0f);
+		return;
+	}
 	vm->result.setFloat(vm->targ->x + vm->targ->getWidth());
 }
 
@@ -1189,7 +1233,10 @@ void v_POSR(caosVM* vm) {
 void v_POSB(caosVM* vm) {
 	VM_VERIFY_SIZE(0)
 
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setFloat(0.0f);
+		return;
+	}
 	vm->result.setFloat(vm->targ->y + vm->targ->getHeight());
 }
 
@@ -1607,7 +1654,10 @@ void c_ALPH_cv(caosVM* vm) {
  Returns the agent currently held by the TARG agent, or a random one if there are more than one.
 */
 void v_HELD(caosVM* vm) {
-	valid_agent(vm->targ);
+	if (!vm->targ) {
+		vm->result.setAgent(0);
+		return;
+	}
 
 	// TODO: this whole thing perhaps belongs in a virtual function
 	Vehicle* v = dynamic_cast<Vehicle*>(vm->targ.get());
