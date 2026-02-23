@@ -1,6 +1,8 @@
 ---
-description: How to build openc2e on Windows
+description: How to build openc2e on Windows and macOS
 ---
+
+# Windows
 
 ## Prerequisites
 
@@ -48,4 +50,47 @@ Replace `C:\path\to\GameDataFiles` with the path to a Creatures game's data dire
 
 ```powershell
 cd build && ctest --build-config RelWithDebInfo
+```
+
+---
+
+# macOS
+
+## Prerequisites
+
+Install dependencies using [Homebrew](https://brew.sh):
+
+```bash
+brew install cmake
+```
+
+## Configure (CMake)
+
+// turbo
+```bash
+cmake -S . -B build
+```
+
+## Build
+
+```bash
+cmake --build build -j$(sysctl -n hw.logicalcpu)
+```
+
+The output binary will be at: `build/openc2e`
+
+## Run
+
+```bash
+./build/openc2e -d "/path/to/GameDataFiles"
+```
+
+Replace `/path/to/GameDataFiles` with the path to a Creatures game's data directory (e.g., `/Users/username/Creatures Docking Station/Docking Station`).
+
+> **Note**: For Docking Station specifically, ensure that paths in `machine.cfg` are relative paths (e.g. `../Creatures 3/Backgrounds`) rather than absolute Windows paths (e.g. `C:\\Program Files...`) and ensure it has an `"Auxiliary 1 Main Directory"` pointing to your base game path.
+
+## Run Tests
+
+```bash
+cd build && ctest --output-on-failure
 ```
